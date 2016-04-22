@@ -5,20 +5,20 @@ import threading
 
 from .config import is_backend, Backend
 
-class Emitter:
+class Pipe:
     """
-    Subclass this class with your own to create pluggable Emitter component.
+    Subclass this class with your own to create pluggable Pipe component.
 
-    Implement Emitter behavior by overriding any of the following methods:
+    Implement Pipe behavior by overriding any of the following methods:
 
-    :setup: called with any arguments you pass to the Emitter's constructor
-    :do: called once for each value from the upstream Emitter
-    :teardown: called once when this Emitter has finished receiving values
+    :setup: called with any arguments you pass to the Pipe's constructor
+    :do: called once for each value from the upstream Pipe
+    :teardown: called once when this Pipe has finished receiving values
 
     These methods do nothing unless overridden.
     """
 
-    ## Methods that run on emitter thread(s)
+    ## Methods that run on pipe thread(s)
     #
 
     def setup(self, *largs, **dargs):
@@ -37,12 +37,12 @@ class Emitter:
         pass
 
     def emit(self, value):
-        """Send a value on to the next emitter
+        """Send a value on to the next pipe
 
-        If there are multiple emitters, distribute round-robin
+        If there are multiple pipes, distribute round-robin
         """
         if len(self._output_queues) > 0:
-            output_queue, other_emitter = self._output_queues[self._next_output_queue_index]
+            output_queue, other_pipe = self._output_queues[self._next_output_queue_index]
             output_queue.put(value)
 
             self._next_output_queue_index += 1
@@ -57,7 +57,7 @@ class Emitter:
     #
 
     def __init__(self, *largs, **dargs):
-        # The args to pass through; Emitter args removed during init
+        # The args to pass through; Pipe args removed during init
         self._passthrough_list_args = largs
         self._passthrough_dict_args = dargs
 
@@ -67,30 +67,30 @@ class Emitter:
 
         for i in range(dargs['processes']):
             if is_backend(Backend.THREADING):
-                emitterclass = _EmitterThread
+                pipeclass = _PipeThread
             elif is_backend(Backend.MULTIPROCESSING):
-                emitterclass = _EmitterProcess
+                pipeclass = _PipeProcess
             elif is_backend(Backend.DUMMY):
-                emitterclass = _EmitterDummy
+                pipeclass = _PipeDummy
 
             procname = "{0}{1}".format(self.__class__.__name__, i)
-            self._processes.append(emitterclass(name=procname, emitter_instance=self))
+            self._processes.append(pipeclass(name=procname, pipe_instance=self))
 
         del self._passthrough_dict_args['processes']
 
         self._started_operating = False
         self._results = None
-        self._output_queues = [] # elements: (Queue, other Emitter)
+        self._output_queues = [] # elements: (Queue, other Pipe)
         self._next_output_queue_index = 0 # For round-robin queueing
 
-        self._input_queues = [] # elements: (Queue, other Emitter or None if iterable used)
+        self._input_queues = [] # elements: (Queue, other Pipe or None if iterable used)
 
     def infrom(self, upstream):
         """Connect this pipe to :upstream: so that the output of :upstream: is
         this pipe's input. Returns :self: (the downstream pipe), for chaining.
         """
         if self._started_operating:
-            raise Exception("You cannot change an emitter flow once it is running")
+            raise Exception("You cannot change a pipe flow once it is running")
 
         if is_backend(Backend.MULTIPROCESSING):
             new_queue = multiprocessing.Queue()
@@ -114,58 +114,58 @@ class Emitter:
         """
         self.start()
 
-        #TODO: join all processes; the current system only works cleanly with one output emitter
+        #TODO: join all processes; the current system only works cleanly with one output pipe
         if not is_backend(Backend.DUMMY):
-            for p in self._result_emitter()._processes:
+            for p in self._result_pipe()._processes:
                 p.join()
 
     def start(self):
         """Start the flow, do not block until complection, and do not return any results.
         """
         if self._started_operating:
-            raise Exception("You cannot start an emitter flow that has already been run")
+            raise Exception("You cannot start a pipe flow that has already been run")
         self._start_operating()
 
     def results(self):
         """Start the flow, block until completion, and return the results.
         """
         if self._started_operating:
-            raise Exception("You cannot start an emitter flow that has already been run")
-        result_emitter = self._result_emitter()
+            raise Exception("You cannot start a pipe flow that has already been run")
+        result_pipe = self._result_pipe()
 
         if is_backend(Backend.MULTIPROCESSING):
-            result_emitter._results = multiprocessing.Manager().list()
+            result_pipe._results = multiprocessing.Manager().list()
         else:
-            result_emitter._results = []
+            result_pipe._results = []
 
         self.execute()
 
         if is_backend(Backend.MULTIPROCESSING):
-            return list(result_emitter._results)
+            return list(result_pipe._results)
         else:
-            return result_emitter._results
+            return result_pipe._results
 
     def _start_operating(self):
         if self._started_operating:
             return
         self._started_operating = True
 
-        # Here, for the dummy emitter, we assume the graph to be a DAG
-        for _, input_emitter in self._input_queues:
-            if input_emitter:
-                input_emitter._start_operating()
+        # Here, for the dummy pipe, we assume the graph to be a DAG
+        for _, input_pipe in self._input_queues:
+            if input_pipe:
+                input_pipe._start_operating()
 
         for p in self._processes:
             p.start()
 
-        for _, output_emitter in self._output_queues:
-            if output_emitter:
-                output_emitter._start_operating()
+        for _, output_pipe in self._output_queues:
+            if output_pipe:
+                output_pipe._start_operating()
 
-    def _result_emitter(self):
+    def _result_pipe(self):
         if len(self._output_queues) == 0:
             return self
-        return self._output_queues[0][1]._result_emitter()
+        return self._output_queues[0][1]._result_pipe()
 
     def _output_complete(self):
         for p in self._processes:
@@ -173,31 +173,31 @@ class Emitter:
                 return False
         return True
 
-class _EmitterProcess(multiprocessing.Process):
+class _PipeProcess(multiprocessing.Process):
 
-    def __init__(self, name, emitter_instance):
+    def __init__(self, name, pipe_instance):
         multiprocessing.Process.__init__(self, name=name)
-        self.emitter = emitter_instance
+        self.pipe = pipe_instance
         self._output_complete_event = multiprocessing.Event()
 
     def run(self):
-        self.emitter.setup(*self.emitter._passthrough_list_args,
-                           **self.emitter._passthrough_dict_args)
+        self.pipe.setup(*self.pipe._passthrough_list_args,
+                           **self.pipe._passthrough_dict_args)
 
         while True:
             # If all inputs claim to be done, make one more pass for data,
             # then finish up
             all_inputs_complete = True
-            for input_queue, other_emitter in self.emitter._input_queues:
-                if other_emitter and not other_emitter._output_complete():
+            for input_queue, other_pipe in self.pipe._input_queues:
+                if other_pipe and not other_pipe._output_complete():
                     all_inputs_complete = False
                     break
 
             # Consume from each queue
-            for input_queue, other_emitter in self.emitter._input_queues:
+            for input_queue, other_pipe in self.pipe._input_queues:
                 try:
                     while True:
-                        self.emitter.do(input_queue.get_nowait())
+                        self.pipe.do(input_queue.get_nowait())
                 except Empty:
                     pass
 
@@ -205,40 +205,40 @@ class _EmitterProcess(multiprocessing.Process):
                 break
             sleep(0.01)
 
-        self.emitter.teardown()
+        self.pipe.teardown()
 
         # Make sure output queues are flushed out
-        for output_queue, other_emitter in self.emitter._output_queues:
+        for output_queue, other_pipe in self.pipe._output_queues:
             output_queue.close()
-        for output_queue, other_emitter in self.emitter._output_queues:
+        for output_queue, other_pipe in self.pipe._output_queues:
             output_queue.join_thread()
         self._output_complete_event.set()
 
-class _EmitterThread(threading.Thread):
+class _PipeThread(threading.Thread):
 
-    def __init__(self, name, emitter_instance):
+    def __init__(self, name, pipe_instance):
         threading.Thread.__init__(self, name=name)
-        self.emitter = emitter_instance
+        self.pipe = pipe_instance
         self._output_complete_event = threading.Event()
 
     def run(self):
-        self.emitter.setup(*self.emitter._passthrough_list_args,
-                           **self.emitter._passthrough_dict_args)
+        self.pipe.setup(*self.pipe._passthrough_list_args,
+                           **self.pipe._passthrough_dict_args)
 
         while True:
             # If all inputs claim to be done, make one more pass for data,
             # then finish up
             all_inputs_complete = True
-            for input_queue, other_emitter in self.emitter._input_queues:
-                if other_emitter and not other_emitter._output_complete():
+            for input_queue, other_pipe in self.pipe._input_queues:
+                if other_pipe and not other_pipe._output_complete():
                     all_inputs_complete = False
                     break
 
             # Consume from each queue
-            for input_queue, other_emitter in self.emitter._input_queues:
+            for input_queue, other_pipe in self.pipe._input_queues:
                 try:
                     while True:
-                        self.emitter.do(input_queue.get_nowait())
+                        self.pipe.do(input_queue.get_nowait())
                 except Empty:
                     pass
 
@@ -246,39 +246,39 @@ class _EmitterThread(threading.Thread):
                 break
             sleep(0.01)
 
-        self.emitter.teardown()
+        self.pipe.teardown()
         self._output_complete_event.set()
 
-class _EmitterDummy:
-    """Emitter implementation that fakes a real process.
+class _PipeDummy:
+    """Pipe implementation that fakes a real process.
 
     When start() is called, it simply reads from all input queues, does all
     execution, then closes out. Used for testing. Only works if the pipeline
     is directed and acyclic.
     """
 
-    def __init__(self, name, emitter_instance):
-        self.emitter = emitter_instance
+    def __init__(self, name, pipe_instance):
+        self.pipe = pipe_instance
         self._output_complete_event = threading.Event()
 
     def start(self):
-        self.emitter.setup(*self.emitter._passthrough_list_args,
-                           **self.emitter._passthrough_dict_args)
+        self.pipe.setup(*self.pipe._passthrough_list_args,
+                           **self.pipe._passthrough_dict_args)
 
         while True:
             # If all inputs claim to be done, make one more pass for data,
             # then finish up
             all_inputs_complete = True
-            for input_queue, other_emitter in self.emitter._input_queues:
-                if other_emitter and not other_emitter._output_complete():
+            for input_queue, other_pipe in self.pipe._input_queues:
+                if other_pipe and not other_pipe._output_complete():
                     all_inputs_complete = False
                     break
 
             # Consume from each queue
-            for input_queue, other_emitter in self.emitter._input_queues:
+            for input_queue, other_pipe in self.pipe._input_queues:
                 try:
                     while True:
-                        self.emitter.do(input_queue.get_nowait())
+                        self.pipe.do(input_queue.get_nowait())
                 except Empty:
                     pass
 
@@ -286,6 +286,6 @@ class _EmitterDummy:
                 break
             sleep(0.01)
 
-        self.emitter.teardown()
+        self.pipe.teardown()
         self._output_complete_event.set()
 

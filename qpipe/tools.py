@@ -1,9 +1,9 @@
 import re
 
-from .emitter import Emitter
+from .qpipe import Pipe
 from subprocess import check_output
 
-class Iter(Emitter):
+class Iter(Pipe):
     """Takes an iterable in its constructor and emits each item.
 
     Examples:
@@ -14,8 +14,8 @@ class Iter(Emitter):
         for arg in arg_iterable:
             self.emit(arg)
 
-class Fn(Emitter):
-    """Takes a function and creates an emitter that calls it with each input and emits the results.
+class Fn(Pipe):
+    """Takes a function and creates a pipe that calls it with each input and emits the results.
 
     Examples:
         def square(x):
@@ -28,13 +28,13 @@ class Fn(Emitter):
     def do(self, arg):
         self.emit(self.fn(arg))
 
-class Print(Emitter):
+class Print(Pipe):
     """Prints each incoming element using python's native print function.
     """
     def do(self, arg):
         print(arg)
 
-class Open(Emitter):
+class Open(Pipe):
     """Emits lines from a file
     Can be used in two ways:
     - Construct with a filename: `Open("myfile.txt")`
@@ -54,10 +54,10 @@ class Open(Emitter):
             for line in f:
                 self.emit(line)
 
-class Exec(Emitter):
+class Exec(Pipe):
     """Executes a command and emits the output of the command as returned by subprocess.check_output
 
-    Can take a command as constructor or multiple commands from an upstream emitter:
+    Can take a command as constructor or multiple commands from an upstream pipe:
         Exec("uname -a")
         Iter(["echo 'hi there'", "hostname"]).into(Exec())
     """
@@ -67,7 +67,7 @@ class Exec(Emitter):
     def do(self, command):
         self.emit(check_output(command))
 
-class Grep(Emitter):
+class Grep(Pipe):
     """Given a regular expression string as an argument, receives elements and only emits the ones matching the regex.
 
     Example:
@@ -79,7 +79,7 @@ class Grep(Emitter):
         if self.regex.search(text):
             self.emit(text)
 
-class Reverse(Emitter):
+class Reverse(Pipe):
     """Receives elements until none are left, then emits them in reverse order.
 
     Example:

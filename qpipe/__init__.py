@@ -1,3 +1,3 @@
-from .emitter import *
+from .qpipe import *
 from .tools import *
 from .config import *

@@ -24,10 +24,10 @@ def _initialize():
     if _backend:
         return
 
-    _backend = os.getenv("EMITTER_BACKEND", Backend.MULTIPROCESSING)
+    _backend = os.getenv("QPIPE_BACKEND", Backend.MULTIPROCESSING)
 
     if not _backend in [Backend.THREADING, Backend.MULTIPROCESSING, Backend.DUMMY]:
-        raise RuntimeError("Emitter backend is not valid: " + str(_backend))
+        raise RuntimeError("QPipe backend is not valid: " + str(_backend))
 
 _initialize()
 

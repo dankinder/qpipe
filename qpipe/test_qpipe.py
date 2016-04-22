@@ -1,13 +1,13 @@
 from time import time, sleep
 from pytest import mark, fixture
 
-from .emitter import Emitter
+from .qpipe import Pipe
 from .config import is_backend, get_backend, set_backend, Backend
 from tools import Fn, Print, Open, Grep, Reverse, Iter
 
 @fixture(scope="module", params=[Backend.MULTIPROCESSING, Backend.THREADING, Backend.DUMMY])
-def emitter_backend(request):
-    """Change the emitter library to use a threading backend for the test
+def qpipe_backend(request):
+    """Change the qpipe library to use a threading backend for the test
     """
     original_backend = get_backend()
     set_backend(request.param)
@@ -15,8 +15,8 @@ def emitter_backend(request):
         set_backend(original_backend)
     request.addfinalizer(fin)
 
-@mark.usefixtures("emitter_backend")
-class TestBasicEmitterTools:
+@mark.usefixtures("qpipe_backend")
+class TestBasicQPipeTools:
     def test_fn_basic(self):
         assert Iter(range(10)).into(Fn(lambda x: x*x)).results() == [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]
 
@@ -44,14 +44,14 @@ def sq(x):
 def multiply_ten(x):
     return x*10
 
-class SlowEmitter(Emitter):
+class SlowQPipe(Pipe):
     def setup(self, sleeptime=0.1):
         self.sleep = sleeptime
     def do(self, value):
         sleep(self.sleep)
 
-@mark.usefixtures("emitter_backend")
-class TestBasicEmitterPipelines:
+@mark.usefixtures("qpipe_backend")
+class TestBasicQPipePipelines:
     def test_two_sequential(self):
         pipe = Iter(range(10)).into(Fn(sq)).into(Fn(multiply_ten))
         assert pipe.results() == [0, 10, 40, 90, 160, 250, 360, 490, 640, 810]
@@ -62,28 +62,28 @@ class TestBasicEmitterPipelines:
 
     def test_multi(self):
         start = time()
-        Iter(range(10)).into(SlowEmitter()).execute()
+        Iter(range(10)).into(SlowQPipe()).execute()
         finish = time() - start
         if is_backend(Backend.MULTIPROCESSING): assert 0.9 < finish < 1.1
         if is_backend(Backend.THREADING): assert 0.9 < finish < 1.1
         if is_backend(Backend.DUMMY): assert 0.9 < finish < 1.1
 
         start = time()
-        Iter(range(10)).into(SlowEmitter(processes=2)).execute()
+        Iter(range(10)).into(SlowQPipe(processes=2)).execute()
         finish = time() - start
         if is_backend(Backend.MULTIPROCESSING): assert 0.4 < finish < 1.0
         if is_backend(Backend.THREADING): assert 0.4 < finish < .7
         if is_backend(Backend.DUMMY): assert 0.9 < finish < 1.1
 
         start = time()
-        Iter(range(10)).into(SlowEmitter(processes=4)).execute()
+        Iter(range(10)).into(SlowQPipe(processes=4)).execute()
         finish = time() - start
         if is_backend(Backend.MULTIPROCESSING): assert 0.2 < finish < 0.6
         if is_backend(Backend.THREADING): assert 0.2 < finish < 0.5
         if is_backend(Backend.DUMMY): assert 0.9 < finish < 1.1
 
         start = time()
-        Iter(range(10)).into(SlowEmitter(processes=10)).execute()
+        Iter(range(10)).into(SlowQPipe(processes=10)).execute()
         finish = time() - start
         if is_backend(Backend.MULTIPROCESSING): assert finish < 0.4
         if is_backend(Backend.THREADING): assert finish < 0.4

@@ -1,11 +1,12 @@
-# Emitter
+# QPipe
 
-Emitter is a syntatically clean and generic way of writing concurrent programs
-using a flow model (like a graph of pipes). There are currently many ways of
-writing [Flow Based Programs](https://wiki.python.org/moin/FlowBasedProgramming)
-in python, but none seemed to have the simplicity, elegance, and
-generlizeability that Emitter does (the closest probably being
-[DAGPype](https://pypi.python.org/pypi/DAGPype) syntactically, and maybe
+QPipe ("Quick-Pipe", or "Queue-Pipe") is a syntatically clean and generic way
+of writing concurrent programs using a flow model (like a graph of pipes).
+There are currently many ways of writing [Flow Based
+Programs](https://wiki.python.org/moin/FlowBasedProgramming) in python, but
+none seemed to have the simplicity, elegance, and generlizeability that QPipe
+does (the closest probably being
+[pipedream](https://github.com/tgecho/pipedream/) and maybe
 [pypes](https://bitbucket.org/diji/pypes/wiki/Home)).
 
 ## Overview
@@ -27,10 +28,10 @@ This is simple but inflexible. It becomes orders of magnitude more complicated
 to stream data while processing or inter-communicate with other distinct
 processes that maybe be performing related tasks.
 
-Implemented instead with the emitter library:
+Implemented instead with the qpipe library:
 
 ```python
-from emitter import Emitter, Fn
+from qpipe import Pipe, Fn
 
 def f(x):
     return x*x
@@ -39,19 +40,19 @@ if __name__ == '__main__':
     print(Iter([10, 20, 30]).into(Fn(f, processes=4)).results())
 ```
 
-Here is the implementation of a more complicated pipeline using emitter, the
+Here is the implementation of a more complicated pipeline using qpipe, the
 python equivalent of `tail -f myapp.log | grep error`:
 
 ```python
 import re
-from emitter import Emitter, Print
+from qpipe import Pipe, Print
 
-class Tail(Emitter):
+class Tail(Pipe):
     def setup(self, filename):
         for line in sh.tail("-f", filename, _iter=True):
             self.emit(line)
 
-class Grep(Emitter):
+class Grep(Pipe):
     def setup(self, grepstring):
         self.regex = re.compile(grepstring)
     def do(self, text):
@@ -64,9 +65,9 @@ if __name__ == '__main__':
 
 ## API
 
-### Using Emitters
+### Using Pipes
 
-Constructing any emitter builds a pipeline. Use `into` to attach multiple
+Constructing any qpipe builds a pipeline. Use `into` to attach multiple
 components together.
 
 ```python
@@ -80,9 +81,9 @@ Nothing happens until the pipeline is executed.
 Open("myfile.txt").into(Print()).execute()
 ```
 
-Emitters like Open can start generating output using just constructor
+Pipes like Open can start generating output using just constructor
 arguments, but others (like Print) won't do anything unless values are piped
-into them. Passing a list (or any iterable) to the provided Iter emitter works
+into them. Passing a list (or any iterable) to the provided Iter qpipe works
 for this.
 
 ```python
@@ -90,7 +91,7 @@ for this.
 Iter(["hello world", 4, []]).into(Print()).execute()
 ```
 
-Emitters can easily be paralellized by specifying a `processes` keyword
+Pipes can easily be paralellized by specifying a `processes` keyword
 argument.
 
 ```python
@@ -98,25 +99,25 @@ argument.
 Iter(range(10000)).into(SomeComplexMath(processes=4)).into(Print()).execute()
 ```
 
-Emitter pipelines can be started with the following calls:
+Pipelines can be started with the following calls:
 
 `execute()`: start processing, block until completion, return nothing.
 `start()`: start processing, do not block, return nothing.
 `results()`: start processing (if not started already), block until completion, return results as a list.
 
-See the [examples](examples) for a few more emitter program examples.
+See the [examples](examples) for a few more qpipe program examples.
 
 ### Developing Emitters
 
-To create your own emitter, subclass Emitter and override any of these methods:
+To create your own qpipe, subclass Pipe and override any of these methods:
 - `setup`: called once per process at start. Constructor arguments passed to
-your emitter that aren't used by the Emitter superclass will be passed along
+your qpipe that aren't used by the Pipe superclass will be passed along
 to this method.
 - `do`: called once for each input value.
 - `teardown`: called once per process at the end.
 
-Note that all of these are called on the processing thread. If you run an
-Emitter with multiple processes then each one will call setup/teardown.
+Note that all of these are called on the processing thread. If you run a
+Pipe with multiple processes then each one will call setup/teardown.
 Instance variables are not shared.
 
 Within your code, to send values to the next pipe (or results), call
@@ -125,11 +126,11 @@ more times.
 
 ### Other relevant API calls
 
-The backend emitter uses determines how tasks are parallelized. The current choices are:
-- `Backend.MULTIPROCESSING`: the default backend. The emitters use
+The backend qpipe uses determines how tasks are parallelized. The current choices are:
+- `Backend.MULTIPROCESSING`: the default backend. The pipes use
   [multiprocessing.Process](https://docs.python.org/2/library/multiprocessing.html#multiprocessing.Process)
   to execute tasks. If the `processes=X` keyword argument is used this causes
-  that emitter to have X processes executing tasks at once.
+  that pipe to have X processes executing tasks at once.
 - `Backend.THREADING`: similar to MULTIPROCESSING, but instead uses
   [threading.Thread](https://docs.python.org/2/library/threading.html#threading.Thread)
   objects. The amount of parallelism with this backend will be limited by
@@ -140,8 +141,7 @@ The backend emitter uses determines how tasks are parallelized. The current choi
   to the next one.
 
 These can be checked and set using the following functions. This setting is
-currently global and should not be changed while an emitter pipeline is
-executing.
+currently global and should not be changed while pipeline is executing.
 - `set_backend(Backend.THREADING)`
 - `get_backend()`
 - `is_backend(Backend.MULTIPROCESSING)`
@@ -158,8 +158,8 @@ cases like listening for messages on a queue or connections on a port, and
 exceptions can easily cause the pipeline to never complete. I would love to see
 others be inspired by the API and contribute or implement it more robustly than
 I have. Though bear in mind: the lack of fancy features is also deliberate.
-Emitter is intended to be a library optimized for human understanding. This
+QPipe is intended to be a library optimized for human understanding. This
 means keeping complexity down.
 
 All this to say: this is alpha software and the API could easily change,
-especially of the tools in [tools.py](emitter/tools.py).
+especially of the tools in [tools.py](qpipe/tools.py).
