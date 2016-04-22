@@ -162,4 +162,4 @@ Emitter is intended to be a library optimized for human understanding. This
 means keeping complexity down.
 
 All this to say: this is alpha software and the API could easily change,
-especially of the tools in [tools.py](tools.py).
+especially of the tools in [tools.py](emitter/tools.py).
