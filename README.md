@@ -9,6 +9,10 @@ does (the closest probably being
 [pipedream](https://github.com/tgecho/pipedream/) and maybe
 [pypes](https://bitbucket.org/diji/pypes/wiki/Home)).
 
+```bash
+sudo pip install qpipe
+```
+
 ## Overview
 
 One of the simplest ways to parallelize in python is the Pool class:
@@ -26,7 +30,7 @@ if __name__ == '__main__':
 
 This is simple but inflexible. It becomes orders of magnitude more complicated
 to stream data while processing or inter-communicate with other distinct
-processes that maybe be performing related tasks.
+processes that may be performing related tasks.
 
 Implemented instead with the qpipe library:
 
