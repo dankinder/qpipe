@@ -95,7 +95,7 @@ argument.
 
 ```python
 # Runs the "complex math" in 4 processes
-Iter(range(10000)).into(SomeComplexMath(procs=4)).into(Print()).execute()
+Iter(range(10000)).into(SomeComplexMath(processes=4)).into(Print()).execute()
 ```
 
 Emitter pipelines can be started with the following calls:
