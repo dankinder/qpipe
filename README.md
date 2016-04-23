@@ -150,7 +150,7 @@ currently global and should not be changed while pipeline is executing.
 - `get_backend()`
 - `is_backend(Backend.MULTIPROCESSING)`
 
-## Alpha warning
+## A word of caution
 
 I have created this library because I have found myself wanting to write
 concurrent python many times but *not* wanting to deal with the complexity.
@@ -165,5 +165,5 @@ I have. Though bear in mind: the lack of fancy features is also deliberate.
 QPipe is intended to be a library optimized for human understanding. This
 means keeping complexity down.
 
-All this to say: this is alpha software and the API could easily change,
-especially of the tools in [tools.py](qpipe/tools.py).
+All this to say: this software should be considered in alpha and the API could
+easily change, especially of the tools in [tools.py](qpipe/tools.py).
