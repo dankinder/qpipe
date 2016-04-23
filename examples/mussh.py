@@ -8,7 +8,7 @@
 #   python mussh.py host1,host2,host3 "uname -a"
 
 from sys import argv
-from emitter import Emitter, set_backend, Backend, Iter, Exec, Print
+from qpipe import Iter, Exec, Print
 from subprocess import check_output
 
 if __name__ == '__main__':

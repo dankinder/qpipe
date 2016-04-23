@@ -105,13 +105,13 @@ Iter(range(10000)).into(SomeComplexMath(processes=4)).into(Print()).execute()
 
 Pipelines can be started with the following calls:
 
-`execute()`: start processing, block until completion, return nothing.
-`start()`: start processing, do not block, return nothing.
-`results()`: start processing (if not started already), block until completion, return results as a list.
+- `execute()`: start processing, block until completion, return nothing.
+- `start()`: start processing, do not block, return nothing.
+- `results()`: start processing (if not started already), block until completion, return results as a list.
 
 See the [examples](examples) for a few more qpipe program examples.
 
-### Developing Emitters
+### Developing Custom Pipes
 
 To create your own qpipe, subclass Pipe and override any of these methods:
 - `setup`: called once per process at start. Constructor arguments passed to

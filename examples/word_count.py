@@ -10,9 +10,9 @@
 #   python word_count.py file1.txt file2.txt file3.txt
 
 from sys import argv
-from emitter import Emitter, Open, Iter, Print
+from qpipe import Pipe, Open, Iter, Print
 
-class WordCounter(Emitter):
+class WordCounter(Pipe):
     def setup(self):
         self.word_counts = {}
     def do(self, line):
