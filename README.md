@@ -95,7 +95,7 @@ for this.
 Iter(["hello world", 4, []]).into(Print()).execute()
 ```
 
-Pipes can easily be paralellized by specifying a `processes` keyword
+Pipes can easily be parallelized by specifying a `processes` keyword
 argument.
 
 ```python
